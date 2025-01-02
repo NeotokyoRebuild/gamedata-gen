@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.31)
 
-project(vt LANGUAGES CXX)
-
-# TODO is 32bit necessary?
-set(PKG_CONFIG_EXECUTABLE /usr/bin/i686-pc-linux-gnu-pkg-config)
+project(gamedata-gen LANGUAGES CXX)
 
 find_package(PkgConfig)
 
@@ -12,19 +9,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 pkg_check_modules(libelf libelf REQUIRED IMPORTED_TARGET)
 
-add_executable(vt main.cpp)
+add_executable(gamedata-gen)
 
-target_compile_options(vt
+target_sources(gamedata-gen
     PRIVATE
-    -m32
+    src/formatter.cpp
+    src/formatter.hpp
+    src/parser.cpp
+    src/parser.hpp
+    src/reader.cpp
+    src/reader.hpp
+    src/main.cpp
 )
 
-target_link_libraries(vt
+target_link_libraries(gamedata-gen
     PRIVATE
     PkgConfig::libelf
-)
-
-target_link_options(vt
-    PRIVATE
-    -m32
 )
