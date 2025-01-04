@@ -1,5 +1,6 @@
 #pragma once
 
+#include <format>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -18,6 +19,15 @@ struct LargeNumber
 };
 
 std::ostream& operator<<(std::ostream& os, const LargeNumber& number);
+
+template <>
+struct std::formatter<LargeNumber> : formatter<std::string>
+{
+    auto format(LargeNumber number, format_context& ctx) const
+    {
+        return formatter<std::string>::format(std::format("{:#018x}", static_cast<unsigned long long>(number)), ctx);
+    }
+};
 
 struct RodataChunk
 {

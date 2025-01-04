@@ -20,8 +20,9 @@ struct FunctionInfo
 {
     LargeNumber id;
     std::string name;
-    SymbolInfo symbol;
     std::string shortName;
+    std::string nameSpace;
+    SymbolInfo symbol;
     bool isThunk;
     bool isMulti;
     std::vector<ClassInfo*> classes;

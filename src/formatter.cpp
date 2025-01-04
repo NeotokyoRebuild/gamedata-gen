@@ -42,6 +42,8 @@ std::vector<Out2> formatVTable(const ClassInfo &classInfo)
         Out2 function;
         function.id = functionInfo->id;
         function.name = functionInfo->name;
+        function.shortName = functionInfo->shortName;
+        function.nameSpace = functionInfo->nameSpace;
         function.isMulti = functionInfo->isMulti;
 
         auto displayWindowsIndex = windowsIndex;

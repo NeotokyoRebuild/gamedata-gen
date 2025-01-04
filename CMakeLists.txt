@@ -15,11 +15,13 @@ target_sources(gamedata-gen
     PRIVATE
     src/formatter.cpp
     src/formatter.hpp
+    src/main.cpp
     src/parser.cpp
     src/parser.hpp
     src/reader.cpp
     src/reader.hpp
-    src/main.cpp
+    src/writer.cpp
+    src/writer.hpp
 )
 
 target_link_libraries(gamedata-gen

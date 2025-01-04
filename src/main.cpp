@@ -1,6 +1,7 @@
 #include "reader.hpp"
 #include "parser.hpp"
 #include "formatter.hpp"
+#include "writer.hpp"
 
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -167,14 +168,14 @@ int main(int argc, char *argv[])
 
             for (const auto& function : vtable.functions)
             {
-                std::string shortName = function->shortName.empty() ? "" : "(" + function->shortName + ")";
-                std::cout << "    function.id=" << function->id << " " << function->name << " " << shortName << std::endl;
+                std::string shortName = function->shortName.empty() ? "?" : function->shortName;
+                std::cout << std::format("    [{}] {} ({}::{})", function->id, function->name, function->nameSpace, shortName) << std::endl;
             }
         }
     }
 #endif
 
-#if 1
+#if 0
     for (const auto& outClass : out.classes)
     {
         auto functions = formatVTable(outClass);
@@ -198,6 +199,9 @@ int main(int argc, char *argv[])
         }
     }
 #endif
+
+    // TODO: command line options
+    writeGamedataFile(out.classes, {argv[2], argv[3]});
 
     return 0;
 }

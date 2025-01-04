@@ -227,19 +227,15 @@ Out parse(ProgramInfo &programInfo)
             {
                 auto functionDemangledName = demangleSymbol(functionSymbolName.c_str());
                 auto functionName = std::string(functionDemangledName.get());
-
                 auto functionShortName = functionName;
 
-                auto startOfArgs = functionShortName.find('(');
-                if (startOfArgs != std::string::npos)
-                {
-                    functionShortName = functionShortName.substr(0, startOfArgs);
-                }
+                auto functionNameSpace = functionShortName;
 
-                auto startOfName = functionShortName.find("::");
+                auto startOfName = functionShortName.rfind("::");
                 if (startOfName != std::string::npos)
                 {
                     functionShortName = functionShortName.substr(startOfName + 2);
+                    functionNameSpace = functionNameSpace.substr(0, startOfName);
                 }
 
                 FunctionInfo functionInfo;
@@ -248,6 +244,7 @@ Out parse(ProgramInfo &programInfo)
                 functionInfo.name = functionName;
                 functionInfo.symbol = functionSymbol;
                 functionInfo.shortName = functionShortName;
+                functionInfo.nameSpace = functionNameSpace;
                 functionInfo.isThunk = false;
                 functionInfo.isMulti = functionSymbols.size() > 1;
                 functionInfo.classes.push_back(&classInfo);
