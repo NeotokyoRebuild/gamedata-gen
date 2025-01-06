@@ -52,8 +52,6 @@ Offsets prepareOffsets(std::list<ClassInfo>& classes)
 
 std::optional<int> getOffset(Offsets offsets, const std::string& symbol)
 {
-    // CBaseEntity::CBaseEntity::EndTouch.linux
-
     auto functionNameStartPos = symbol.rfind("::");
     if (functionNameStartPos == std::string::npos)
     {
@@ -110,7 +108,7 @@ std::optional<int> getOffset(Offsets offsets, const std::string& symbol)
 }
 
 // TODO return type and values
-int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::string>& inputFiles)
+int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::filesystem::path> &inputFiles, const std::filesystem::path& outputPath)
 {
     auto offsets = prepareOffsets(classes);
 
@@ -119,31 +117,38 @@ int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::stri
         if (inputFile.empty())
         {
             std::cerr << "Error: input file name is empty" << std::endl;
-            return EINVAL;
+            return EXIT_FAILURE;
         }
 
-        constexpr auto inputFileExtension = ".in";
-        auto inputFileNameStartPos = inputFile.find(".in");
-        if (inputFileNameStartPos == std::string::npos)
+        constexpr auto inputFileExtensionString = ".in";
+        auto inputFileExtension = inputFile.extension();
+
+        if (inputFileExtension != inputFileExtensionString)
         {
-            std::cerr << std::format("Error: input file name {} doesn't contain correct file extension {}", inputFile, inputFileExtension) << std::endl;
-            return EINVAL;
+            std::cerr << std::format("Error: input file {} doesn't contain correct file extension {}", inputFile.string(), inputFileExtension.string()) << std::endl;
+            return EXIT_FAILURE;
         }
 
         std::ifstream inputStream(inputFile);
         if (!inputStream)
         {
-            std::cerr << std::format("Error: input file {} open failed - {}", inputFile, std::strerror(errno)) << std::endl;
-            return errno;
+            std::cerr << std::format("Error: input file {} open failed - {}", inputFile.string(), std::strerror(errno)) << std::endl;
+            return EXIT_FAILURE;
         }
 
-        std::string outputFile = inputFile.substr(0, inputFileNameStartPos);
+        auto outputFileName = inputFile.filename().stem();
+        auto outputFileLastDir = *std::prev(std::prev(inputFile.end()));
+        auto outputFileDir = outputPath / outputFileLastDir;
+
+        std::filesystem::create_directory(outputFileDir);
+
+        auto outputFile = outputFileDir / outputFileName;
 
         std::ofstream outputStream(outputFile);
         if (!outputStream)
         {
-            std::cerr << std::format("Error: output file {} open failed - {}", outputFile, std::strerror(errno)) << std::endl;
-            return errno;
+            std::cerr << std::format("Error: output file {} open failed - {}", outputFile.string(), std::strerror(errno)) << std::endl;
+            return EXIT_FAILURE;
         }
 
         std::string line;
@@ -158,21 +163,21 @@ int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::stri
                 auto endPos = line.rfind('#');
                 if (endPos == startPos)
                 {
-                    std::cerr << std::format("Error: input file {} contains only one \'#\' at line {}", inputFile, lineNumber) << std::endl;
+                    std::cerr << std::format("Error: input file {} contains only one \'#\' at line {}", inputFile.string(), lineNumber) << std::endl;
                     return EINVAL;
                 }
 
                 auto symbol = line.substr(startPos + 1, endPos - startPos - 1);
                 if (symbol.empty())
                 {
-                    std::cerr << std::format("Error: symbol from input file {} at line {} is empty somehow", inputFile, lineNumber) << std::endl;
+                    std::cerr << std::format("Error: symbol from input file {} at line {} is empty somehow", inputFile.string(), lineNumber) << std::endl;
                     return EINVAL;
                 }
 
                 auto offset = getOffset(offsets, symbol);
                 if (!offset.has_value())
                 {
-                    std::cerr << std::format("Error: failed to get offset of symbol {} from input file {} at line {}", symbol, inputFile, lineNumber) << std::endl;
+                    std::cerr << std::format("Error: failed to get offset of symbol {} from input file {} at line {}", symbol, inputFile.string(), lineNumber) << std::endl;
                     return EINVAL;
                 }
 
@@ -183,5 +188,5 @@ int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::stri
         }
     }
 
-    return 0;
+    return EXIT_SUCCESS;
 }

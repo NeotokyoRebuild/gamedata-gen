@@ -3,9 +3,10 @@
 #include "formatter.hpp"
 #include "writer.hpp"
 
+#include "CLI/CLI.hpp"
+
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <fcntl.h>
 
 #include <cassert>
@@ -107,19 +108,45 @@ private:
 
 int main(int argc, char *argv[])
 {
-    if (argc < 2)
+    CLI::App app;
+
+    bool dumpOffsets = false;
+    bool dumpSignatures = false;
+
+    std::string libraryPath;
+    app.add_option("--library,-l", libraryPath, "Library path (.so)")->required()->check(CLI::ExistingFile);
+
+    std::vector<std::filesystem::path> inputFilePaths;
+    app.add_option("--input_files,-f", inputFilePaths, "Gamedata input file paths (.txt.in, space-separated)")->check(CLI::ExistingFile);
+
+    std::filesystem::path outputPath;
+    app.add_option("--output,-o", outputPath, "Gamedata output path (one level above with *.games directories)")->check(CLI::ExistingDirectory);;
+
+    app.add_flag("--dump_offsets", dumpOffsets, "Print all vtable offsets");
+    app.add_flag("--dump_signatures", dumpSignatures, "Print all signatures");
+
+    std::string usage_msg = "Usage: gamedata-gen [options]";
+    app.usage(usage_msg);
+    app.set_help_flag("");
+    app.set_help_all_flag("-h, --help");
+
+    app.get_formatter()->column_width(44);
+
+    CLI11_PARSE(app, argc, argv);
+
+    if (outputPath.empty() && !dumpOffsets && !dumpSignatures)
     {
-        fprintf(stderr, "Usage: %s <file-name>\n", argv[0]);
-        return 1;
+        std::cerr << std::format("Specify either --output or one of --dump_* options") << std::endl;
+        return EXIT_FAILURE;
     }
 
 #if 0
-    std::ifstream file(argv[1], std::ios::binary);
+    std::ifstream file(libraryPath, std::ios::binary);
     std::string image((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     auto program = image.data();
     auto size = image.size();
 #else
-    mmapReader reader(argv[1]);
+    mmapReader reader(libraryPath);
     auto program = reader.data();
     auto size = reader.size();
 #endif
@@ -128,8 +155,8 @@ int main(int argc, char *argv[])
 
     if (!programInfo.error.empty())
     {
-        fprintf(stderr, "Failed to process input file '%s': %s.\n", argv[1], programInfo.error.c_str());
-        return 1;
+        std::cerr << std::format("Failed to process input file '{}': {}", libraryPath, programInfo.error) << std::endl;
+        return EXIT_FAILURE;
     }
 
 #if 0
@@ -175,33 +202,36 @@ int main(int argc, char *argv[])
     }
 #endif
 
-#if 0
-    for (const auto& outClass : out.classes)
+    if (dumpOffsets)
     {
-        auto functions = formatVTable(outClass);
-
-        std::cout << "L W " << outClass.name << std::endl;
-        for (const auto& function : functions)
+        for (const auto& outClass : out.classes)
         {
-            std::string linuxIndex = " ";
-            if (function.linuxIndex.has_value())
-            {
-                linuxIndex = std::to_string(function.linuxIndex.value());
-            }
+            auto functions = formatVTable(outClass);
 
-            std::string windowsIndex = " ";
-            if (function.windowsIndex.has_value())
+            std::cout << "L W " << outClass.name << std::endl;
+            for (const auto& function : functions)
             {
-                windowsIndex = std::to_string(function.windowsIndex.value());
-            }
+                std::string linuxIndex = " ";
+                if (function.linuxIndex.has_value())
+                {
+                    linuxIndex = std::to_string(function.linuxIndex.value());
+                }
 
-            std::cout << linuxIndex << " " << windowsIndex << " " << function.name << (function.isMulti ? " [Multi]" : "") << std::endl;
+                std::string windowsIndex = " ";
+                if (function.windowsIndex.has_value())
+                {
+                    windowsIndex = std::to_string(function.windowsIndex.value());
+                }
+
+                std::cout << linuxIndex << " " << windowsIndex << " " << function.name << (function.isMulti ? " [Multi]" : "") << std::endl;
+            }
         }
     }
-#endif
 
-    // TODO: command line options
-    writeGamedataFile(out.classes, {argv[2], argv[3]});
+    if (dumpSignatures)
+    {
+        // TODO
+    }
 
-    return 0;
+    return writeGamedataFile(out.classes, inputFilePaths, outputPath);
 }

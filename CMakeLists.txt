@@ -9,6 +9,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 pkg_check_modules(libelf libelf REQUIRED IMPORTED_TARGET)
 
+add_subdirectory(external/CLI11)
+
 add_executable(gamedata-gen)
 
 target_sources(gamedata-gen
@@ -27,4 +29,5 @@ target_sources(gamedata-gen
 target_link_libraries(gamedata-gen
     PRIVATE
     PkgConfig::libelf
+    CLI11::CLI11
 )
