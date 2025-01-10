@@ -31,3 +31,7 @@ target_link_libraries(gamedata-gen
     PkgConfig::libelf
     CLI11::CLI11
 )
+
+install(
+    TARGETS gamedata-gen
+)
