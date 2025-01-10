@@ -31,13 +31,13 @@ Offsets prepareOffsets(std::list<ClassInfo>& classes)
         {
             if (!function.linuxIndex.has_value())
             {
-                // std::cerr << std::format("Error: function {} has no linuxIndex value", function.name) << std::endl;
+                // std::cerr << std::format("Warning: function {} has no linuxIndex value", function.name) << std::endl;
                 continue;
             }
 
             if (!function.windowsIndex.has_value())
             {
-                // std::cerr << std::format("Error: function {} has no windowsIndex value", function.name) << std::endl;
+                // std::cerr << std::format("Warning: function {} has no windowsIndex value", function.name) << std::endl;
                 continue;
             }
 
@@ -107,40 +107,46 @@ std::optional<int> getOffset(Offsets offsets, const std::string& symbol)
     return isLinux ? function.linuxIndex : function.windowsIndex;
 }
 
-// TODO return type and values
-int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::filesystem::path> &inputFiles, const std::filesystem::path& outputPath)
+int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::filesystem::path> &inputFilePaths, const std::vector<std::filesystem::path>& outputDirectoryPaths)
 {
     auto offsets = prepareOffsets(classes);
 
-    for (const auto& inputFile : inputFiles)
+    auto outputDirectoryPathIterator = outputDirectoryPaths.begin();
+
+    for (const auto& inputFilePath : inputFilePaths)
     {
-        if (inputFile.empty())
+        if (inputFilePath.empty())
         {
             std::cerr << "Error: input file name is empty" << std::endl;
             return EXIT_FAILURE;
         }
 
         constexpr auto inputFileExtensionString = ".in";
-        auto inputFileExtension = inputFile.extension();
+        auto inputFileExtension = inputFilePath.extension();
 
         if (inputFileExtension != inputFileExtensionString)
         {
-            std::cerr << std::format("Error: input file {} doesn't contain correct file extension {}", inputFile.string(), inputFileExtension.string()) << std::endl;
+            std::cerr << std::format("Error: input file {} doesn't contain correct file extension {}", inputFilePath.string(), inputFileExtension.string()) << std::endl;
             return EXIT_FAILURE;
         }
 
-        std::ifstream inputStream(inputFile);
+        std::ifstream inputStream(inputFilePath);
         if (!inputStream)
         {
-            std::cerr << std::format("Error: input file {} open failed - {}", inputFile.string(), std::strerror(errno)) << std::endl;
+            std::cerr << std::format("Error: input file {} open failed - {}", inputFilePath.string(), std::strerror(errno)) << std::endl;
             return EXIT_FAILURE;
         }
 
-        auto outputFileName = inputFile.filename().stem();
-        auto outputFileLastDir = *std::prev(std::prev(inputFile.end()));
-        auto outputFileDir = outputPath / outputFileLastDir;
+        auto outputFileName = inputFilePath.filename().stem();
+        auto outputFileDir = *outputDirectoryPathIterator;
 
         std::filesystem::create_directory(outputFileDir);
+
+        if (!std::filesystem::exists(outputFileDir))
+        {
+            std::cerr << std::format("Error: failed to create {} directory", outputFileDir.string(), std::strerror(errno)) << std::endl;
+            return EXIT_FAILURE;
+        }
 
         auto outputFile = outputFileDir / outputFileName;
 
@@ -163,21 +169,21 @@ int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::file
                 auto endPos = line.rfind('#');
                 if (endPos == startPos)
                 {
-                    std::cerr << std::format("Error: input file {} contains only one \'#\' at line {}", inputFile.string(), lineNumber) << std::endl;
+                    std::cerr << std::format("Error: input file {} contains only one \'#\' at line {}", inputFilePath.string(), lineNumber) << std::endl;
                     return EINVAL;
                 }
 
                 auto symbol = line.substr(startPos + 1, endPos - startPos - 1);
                 if (symbol.empty())
                 {
-                    std::cerr << std::format("Error: symbol from input file {} at line {} is empty somehow", inputFile.string(), lineNumber) << std::endl;
+                    std::cerr << std::format("Error: symbol from input file {} at line {} is empty somehow", inputFilePath.string(), lineNumber) << std::endl;
                     return EINVAL;
                 }
 
                 auto offset = getOffset(offsets, symbol);
                 if (!offset.has_value())
                 {
-                    std::cerr << std::format("Error: failed to get offset of symbol {} from input file {} at line {}", symbol, inputFile.string(), lineNumber) << std::endl;
+                    std::cerr << std::format("Error: failed to get offset of symbol {} from input file {} at line {}", symbol, inputFilePath.string(), lineNumber) << std::endl;
                     return EINVAL;
                 }
 
@@ -185,6 +191,11 @@ int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::file
             }
 
             outputStream << line << std::endl; // write to os
+        }
+
+        if (auto next = std::next(outputDirectoryPathIterator); next != outputDirectoryPaths.end())
+        {
+            outputDirectoryPathIterator = next;
         }
     }
 

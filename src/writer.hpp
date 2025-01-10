@@ -5,4 +5,4 @@
 #include <filesystem>
 #include <list>
 
-int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::filesystem::path> &inputFiles, const std::filesystem::path &outputPath);
+int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::filesystem::path> &inputFilePaths, const std::vector<std::filesystem::path> &outputDirectoryPaths);

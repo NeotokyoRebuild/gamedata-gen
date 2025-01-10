@@ -117,10 +117,10 @@ int main(int argc, char *argv[])
     app.add_option("--library,-l", libraryPath, "Library path (.so)")->required()->check(CLI::ExistingFile);
 
     std::vector<std::filesystem::path> inputFilePaths;
-    app.add_option("--input_files,-f", inputFilePaths, "Gamedata input file paths (.txt.in, space-separated)")->check(CLI::ExistingFile);
+    app.add_option("--input_files,-f", inputFilePaths, "Gamedata input file paths (space-separated, .txt.in)")->check(CLI::ExistingFile);
 
-    std::filesystem::path outputPath;
-    app.add_option("--output,-o", outputPath, "Gamedata output path (one level above with *.games directories)")->check(CLI::ExistingDirectory);;
+    std::vector<std::filesystem::path> outputDirectoryPaths;
+    app.add_option("--output_dirs,-o", outputDirectoryPaths, "Gamedata output directory paths (space-separated)");
 
     app.add_flag("--dump_offsets", dumpOffsets, "Print all vtable offsets");
     app.add_flag("--dump_signatures", dumpSignatures, "Print all signatures");
@@ -128,13 +128,13 @@ int main(int argc, char *argv[])
     std::string usage_msg = "Usage: gamedata-gen [options]";
     app.usage(usage_msg);
     app.set_help_flag("");
-    app.set_help_all_flag("-h, --help");
+    app.set_help_all_flag("-h,--help");
 
     app.get_formatter()->column_width(44);
 
     CLI11_PARSE(app, argc, argv);
 
-    if (outputPath.empty() && !dumpOffsets && !dumpSignatures)
+    if (outputDirectoryPaths.empty() && !dumpOffsets && !dumpSignatures)
     {
         std::cerr << std::format("Specify either --output or one of --dump_* options") << std::endl;
         return EXIT_FAILURE;
@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
     auto size = reader.size();
 #endif
 
-    ProgramInfo programInfo = process(program, size);
+    auto programInfo = process(program, size);
 
     if (!programInfo.error.empty())
     {
@@ -204,11 +204,11 @@ int main(int argc, char *argv[])
 
     if (dumpOffsets)
     {
+        std::cout << "Class name::Namespace::Function, Linux offset, Windows offset\n" << std::endl;
         for (const auto& outClass : out.classes)
         {
             auto functions = formatVTable(outClass);
 
-            std::cout << "L W " << outClass.name << std::endl;
             for (const auto& function : functions)
             {
                 std::string linuxIndex = " ";
@@ -223,15 +223,26 @@ int main(int argc, char *argv[])
                     windowsIndex = std::to_string(function.windowsIndex.value());
                 }
 
-                std::cout << linuxIndex << " " << windowsIndex << " " << function.name << (function.isMulti ? " [Multi]" : "") << std::endl;
+                std::cout << std::format("{}::{} {} {} {}", outClass.name, function.name, (function.isMulti ? " [Multi]" : ""), linuxIndex, windowsIndex) << std::endl;
             }
         }
     }
 
     if (dumpSignatures)
     {
-        // TODO
+        for (const auto& symbol : programInfo.symbols)
+        {
+            if (symbol.name.empty())
+            {
+                continue;
+            }
+
+            auto demangledSymbol = demangleSymbol(symbol.name.c_str());
+            auto demangledSymbolText = demangledSymbol ? &*demangledSymbol : symbol.name.c_str();
+
+            std::cout << std::format("{} {}", demangledSymbolText, symbol.name) << std::endl;
+        }
     }
 
-    return writeGamedataFile(out.classes, inputFilePaths, outputPath);
+    return writeGamedataFile(out.classes, inputFilePaths, outputDirectoryPaths);
 }
