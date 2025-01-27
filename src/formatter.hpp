@@ -10,9 +10,10 @@ bool shouldSkipWindowsFunction(const ClassInfo &classInfo, std::size_t vtableInd
 struct Out2
 {
     LargeNumber id;
-    std::string name;
-    std::string shortName;
-    std::string nameSpace;
+    std::string symbol; // CNEO_Player::CBaseEntity::EndTouch(CBaseEntity*)
+    std::string name; // EndTouch(CBaseEntity*)
+    std::string shortName; // EndTouch
+    std::string nameSpace; // CBaseEntity
     bool isMulti;
     std::optional<int> linuxIndex;
     std::optional<int> windowsIndex;

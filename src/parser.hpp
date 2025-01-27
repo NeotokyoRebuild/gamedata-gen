@@ -19,10 +19,11 @@ struct ClassInfo;
 struct FunctionInfo
 {
     LargeNumber id;
-    std::string name;
-    std::string shortName;
-    std::string nameSpace;
     SymbolInfo symbol;
+    std::string demangledSymbol; // CNEO_Player::CBaseEntity::EndTouch(CBaseEntity*)
+    std::string name; // EndTouch(CBaseEntity*)
+    std::string shortName; // EndTouch
+    std::string nameSpace; // CBaseEntity
     bool isThunk;
     bool isMulti;
     std::vector<ClassInfo*> classes;

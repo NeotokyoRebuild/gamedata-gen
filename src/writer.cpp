@@ -41,7 +41,7 @@ Offsets prepareOffsets(std::list<ClassInfo>& classes)
                 continue;
             }
 
-            vtables[function.nameSpace].emplace(function.shortName, FunctionOffsets{function.linuxIndex.value(), function.windowsIndex.value()});
+            vtables[function.nameSpace].emplace(function.name, FunctionOffsets{function.linuxIndex.value(), function.windowsIndex.value()});
         }
 
         offsets.emplace(class_.name, vtables);
@@ -97,7 +97,7 @@ std::optional<int> getOffset(Offsets offsets, const std::string& symbol)
     auto functionIterator = classNamespace.find(functionName);
     if (functionIterator == classNamespace.end())
     {
-        std::cerr << std::format("Error: failed to find function by its name \'{}\')", functionName) << std::endl;
+        std::cerr << std::format("Error: failed to find function by its name \'{}\'", functionName) << std::endl;
         return std::nullopt;
     }
     const auto& function = functionIterator->second;

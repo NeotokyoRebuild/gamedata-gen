@@ -225,26 +225,35 @@ Out parse(ProgramInfo &programInfo)
             }
             else
             {
-                auto functionDemangledName = demangleSymbol(functionSymbolName.c_str());
-                auto functionName = std::string(functionDemangledName.get());
-                auto functionShortName = functionName;
+                auto demangledSymbolPtr = demangleSymbol(functionSymbolName.c_str());
+                auto demangledSymbol = std::string(demangledSymbolPtr.get());
+                std::string name = demangledSymbol;
+                std::string shortName = demangledSymbol;
+                std::string nameSpace = demangledSymbol;
 
-                auto functionNameSpace = functionShortName;
-
-                auto startOfName = functionShortName.rfind("::");
+                auto startOfName = demangledSymbol.rfind("::");
                 if (startOfName != std::string::npos)
                 {
-                    functionShortName = functionShortName.substr(startOfName + 2);
-                    functionNameSpace = functionNameSpace.substr(0, startOfName);
+                    name = name.substr(startOfName + 2);
                 }
+
+                auto startOfArgs = demangledSymbol.rfind('(');
+                if (startOfArgs != std::string::npos)
+                {
+                    shortName = shortName.substr(startOfName + 2, startOfArgs - startOfName - 2);
+                }
+
+
+                nameSpace = nameSpace.substr(0, startOfName);
 
                 FunctionInfo functionInfo;
 
                 functionInfo.id = functionAddress;
-                functionInfo.name = functionName;
                 functionInfo.symbol = functionSymbol;
-                functionInfo.shortName = functionShortName;
-                functionInfo.nameSpace = functionNameSpace;
+                functionInfo.demangledSymbol = demangledSymbol;
+                functionInfo.name = name;
+                functionInfo.shortName = shortName;
+                functionInfo.nameSpace = nameSpace;
                 functionInfo.isThunk = false;
                 functionInfo.isMulti = functionSymbols.size() > 1;
                 functionInfo.classes.push_back(&classInfo);
@@ -252,7 +261,7 @@ Out parse(ProgramInfo &programInfo)
                 if (functionSymbol.name.starts_with("_ZTh"))
                 {
                     functionInfo.isThunk = true;
-                    functionInfo.name = functionName.substr(21); // remove "non-virtual thunk to" substring
+                    functionInfo.name = demangledSymbol.substr(21); // remove "non-virtual thunk to" substring
                 }
 
                 out.functions.push_back(functionInfo);

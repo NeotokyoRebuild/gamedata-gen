@@ -2,7 +2,7 @@
 
 bool shouldSkipWindowsFunction(const ClassInfo &classInfo, std::size_t vtableIndex, std::size_t functionIndex, const FunctionInfo &functionInfo)
 {
-    if (functionInfo.name.contains("::~"))
+    if (functionInfo.name.starts_with('~'))
     {
         return functionIndex > 0 && functionInfo.name == classInfo.vtables.at(vtableIndex).functions.at(functionIndex - 1)->name;
     }
@@ -41,6 +41,7 @@ std::vector<Out2> formatVTable(const ClassInfo &classInfo)
 
         Out2 function;
         function.id = functionInfo->id;
+        function.symbol = functionInfo->demangledSymbol;
         function.name = functionInfo->name;
         function.shortName = functionInfo->shortName;
         function.nameSpace = functionInfo->nameSpace;
