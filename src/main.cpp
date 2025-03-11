@@ -4,10 +4,12 @@
 #include "writer.hpp"
 
 #include "CLI/CLI.hpp"
+#include <fmt/core.h>
 
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include <cassert>
 #include <cstring>
@@ -20,13 +22,13 @@ public:
         auto fd = ::open(path.c_str(), O_RDONLY);
         if(fd == -1)
         {
-            throw std::runtime_error(std::format("Failed to open file \"{}\": {} (errno={}) ", path, strerror(errno), errno));
+            throw std::runtime_error(fmt::format("Failed to open file \"{}\": {} (errno={}) ", path, strerror(errno), errno));
         }
 
         struct stat sb {};
         if(fstat(fd, &sb) == -1)
         {
-            throw std::runtime_error(std::format("stat failed for file \"{}\": {} (errno={}) ", path, strerror(errno), errno));
+            throw std::runtime_error(fmt::format("stat failed for file \"{}\": {} (errno={}) ", path, strerror(errno), errno));
         }
 
         auto file_size = static_cast<std::size_t>(sb.st_size);
@@ -46,7 +48,7 @@ public:
         {
             if(data == MAP_FAILED)
             {
-                throw std::runtime_error(std::format("mmap failed for file \"{}\": {} (errno={}) ", path, strerror(errno), errno));
+                throw std::runtime_error(fmt::format("mmap failed for file \"{}\": {} (errno={}) ", path, strerror(errno), errno));
             }
         }
 
@@ -66,26 +68,26 @@ public:
             auto res = madvise(reinterpret_cast<void*>(m_data), m_mem_size, MADV_DONTNEED | MADV_FREE);
             if(res == -1)
             {
-                std::cout << std::format("madvise failed: {} (errno={}) ", strerror(errno), errno);
+                std::cout << fmt::format("madvise failed: {} (errno={}) ", strerror(errno), errno);
             }
 
             res = munmap(reinterpret_cast<void*>(m_data), m_mem_size);
             if(res != 0)
             {
-                std::cout << std::format("munmap failed with result {}: {} (errno={}) ", res, strerror(errno), errno);
+                std::cout << fmt::format("munmap failed with result {}: {} (errno={}) ", res, strerror(errno), errno);
             }
         }
 
         auto res = posix_fadvise(m_fd, 0, static_cast<off_t>(m_file_size), POSIX_FADV_DONTNEED); //POSIX_FADV_NOREUSE
         if(res != 0)
         {
-            std::cout << std::format("posix_fadvise failed: {} (errno={}) ", strerror(errno), errno);
+            std::cout << fmt::format("posix_fadvise failed: {} (errno={}) ", strerror(errno), errno);
         }
 
         res = ::close(m_fd);
         if(res == -1)
         {
-            std::cout << std::format("Failed to close file descriptor {}: {} (errno={}) ", m_fd, strerror(errno), errno);
+            std::cout << fmt::format("Failed to close file descriptor {}: {} (errno={}) ", m_fd, strerror(errno), errno);
         }
     }
 
@@ -136,7 +138,7 @@ int main(int argc, char *argv[])
 
     if (outputDirectoryPaths.empty() && !dumpOffsets && !dumpSignatures)
     {
-        std::cerr << std::format("Specify either --output or one of --dump_* options") << std::endl;
+        std::cerr << fmt::format("Specify either --output or one of --dump_* options") << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -155,7 +157,7 @@ int main(int argc, char *argv[])
 
     if (!programInfo.error.empty())
     {
-        std::cerr << std::format("Failed to process input file '{}': {}", libraryPath, programInfo.error) << std::endl;
+        std::cerr << fmt::format("Failed to process input file '{}': {}", libraryPath, programInfo.error) << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -196,7 +198,7 @@ int main(int argc, char *argv[])
             for (const auto& function : vtable.functions)
             {
                 std::string shortName = function->shortName.empty() ? "?" : function->shortName;
-                std::cout << std::format("    [{}] {} ({}::{})", function->id, function->name, function->nameSpace, shortName) << std::endl;
+                std::cout << fmt::format("    [{}] {} ({}::{})", function->id, function->name, function->nameSpace, shortName) << std::endl;
             }
         }
     }
@@ -223,7 +225,7 @@ int main(int argc, char *argv[])
                     windowsIndex = std::to_string(function.windowsIndex.value());
                 }
 
-                std::cout << std::format("{}::{} {} {} {}", outClass.name, function.name, (function.isMulti ? " [Multi]" : ""), linuxIndex, windowsIndex) << std::endl;
+                std::cout << fmt::format("{}::{} {} {} {}", outClass.name, function.name, (function.isMulti ? " [Multi]" : ""), linuxIndex, windowsIndex) << std::endl;
             }
         }
     }
@@ -240,7 +242,7 @@ int main(int argc, char *argv[])
             auto demangledSymbol = demangleSymbol(symbol.name.c_str());
             auto demangledSymbolText = demangledSymbol ? &*demangledSymbol : symbol.name.c_str();
 
-            std::cout << std::format("{} {}", demangledSymbolText, symbol.name) << std::endl;
+            std::cout << fmt::format("{} {}", demangledSymbolText, symbol.name) << std::endl;
         }
     }
 

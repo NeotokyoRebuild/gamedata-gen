@@ -1,5 +1,7 @@
 #include "formatter.hpp"
 
+#include <algorithm>
+
 bool shouldSkipWindowsFunction(const ClassInfo &classInfo, std::size_t vtableIndex, std::size_t functionIndex, const FunctionInfo &functionInfo)
 {
     if (functionInfo.name.starts_with('~'))
