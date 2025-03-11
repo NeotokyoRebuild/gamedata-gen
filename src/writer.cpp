@@ -31,13 +31,13 @@ Offsets prepareOffsets(std::list<ClassInfo>& classes)
         {
             if (!function.linuxIndex.has_value())
             {
-                // std::cerr << std::format("Warning: function {} has no linuxIndex value", function.name) << std::endl;
+                // std::cerr << fmt::format("Warning: function {} has no linuxIndex value", function.name) << std::endl;
                 continue;
             }
 
             if (!function.windowsIndex.has_value())
             {
-                // std::cerr << std::format("Warning: function {} has no windowsIndex value", function.name) << std::endl;
+                // std::cerr << fmt::format("Warning: function {} has no windowsIndex value", function.name) << std::endl;
                 continue;
             }
 
@@ -55,21 +55,21 @@ std::optional<int> getOffset(Offsets offsets, const std::string& symbol)
     auto functionNameStartPos = symbol.rfind("::");
     if (functionNameStartPos == std::string::npos)
     {
-        std::cerr << std::format("Error: incorrect format of symbol {} (missing \'::\' separator)", symbol) << std::endl;
+        std::cerr << fmt::format("Error: incorrect format of symbol {} (missing \'::\' separator)", symbol) << std::endl;
         return std::nullopt;
     }
 
     auto systemNameStartPos = symbol.rfind('.');
     if (systemNameStartPos == std::string::npos)
     {
-        std::cerr << std::format("Error: incorrect format of symbol {} (missing \'.\' separator)", symbol) << std::endl;
+        std::cerr << fmt::format("Error: incorrect format of symbol {} (missing \'.\' separator)", symbol) << std::endl;
         return std::nullopt;
     }
 
     auto namespaceStartPos = symbol.find("::");
     if (namespaceStartPos == std::string::npos)
     {
-        std::cerr << std::format("Error: incorrect format of symbol {} (missing \'::\' separator)", symbol) << std::endl;
+        std::cerr << fmt::format("Error: incorrect format of symbol {} (missing \'::\' separator)", symbol) << std::endl;
         return std::nullopt;
     }
 
@@ -81,7 +81,7 @@ std::optional<int> getOffset(Offsets offsets, const std::string& symbol)
     auto classVTablesIterator = offsets.find(className);
     if (classVTablesIterator == offsets.end())
     {
-        std::cerr << std::format("Error: failed to find class vtable by its name \'{}\')", className) << std::endl;
+        std::cerr << fmt::format("Error: failed to find class vtable by its name \'{}\')", className) << std::endl;
         return std::nullopt;
     }
     const auto& classVTables = classVTablesIterator->second;
@@ -89,7 +89,7 @@ std::optional<int> getOffset(Offsets offsets, const std::string& symbol)
     auto classNamespaceIterator = classVTables.find(namespaceName);
     if (classNamespaceIterator == classVTables.end())
     {
-        std::cerr << std::format("Error: failed to find class namespace by its name \'{}\')", namespaceName) << std::endl;
+        std::cerr << fmt::format("Error: failed to find class namespace by its name \'{}\')", namespaceName) << std::endl;
         return std::nullopt;
     }
     const auto& classNamespace = classNamespaceIterator->second;
@@ -97,7 +97,7 @@ std::optional<int> getOffset(Offsets offsets, const std::string& symbol)
     auto functionIterator = classNamespace.find(functionName);
     if (functionIterator == classNamespace.end())
     {
-        std::cerr << std::format("Error: failed to find function by its name \'{}\'", functionName) << std::endl;
+        std::cerr << fmt::format("Error: failed to find function by its name \'{}\'", functionName) << std::endl;
         return std::nullopt;
     }
     const auto& function = functionIterator->second;
@@ -126,14 +126,14 @@ int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::file
 
         if (inputFileExtension != inputFileExtensionString)
         {
-            std::cerr << std::format("Error: input file {} doesn't contain correct file extension {}", inputFilePath.string(), inputFileExtension.string()) << std::endl;
+            std::cerr << fmt::format("Error: input file {} doesn't contain correct file extension {}", inputFilePath.string(), inputFileExtension.string()) << std::endl;
             return EXIT_FAILURE;
         }
 
         std::ifstream inputStream(inputFilePath);
         if (!inputStream)
         {
-            std::cerr << std::format("Error: input file {} open failed - {}", inputFilePath.string(), std::strerror(errno)) << std::endl;
+            std::cerr << fmt::format("Error: input file {} open failed - {}", inputFilePath.string(), std::strerror(errno)) << std::endl;
             return EXIT_FAILURE;
         }
 
@@ -144,7 +144,7 @@ int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::file
 
         if (!std::filesystem::exists(outputFileDir))
         {
-            std::cerr << std::format("Error: failed to create {} directory", outputFileDir.string(), std::strerror(errno)) << std::endl;
+            std::cerr << fmt::format("Error: failed to create {} directory", outputFileDir.string(), std::strerror(errno)) << std::endl;
             return EXIT_FAILURE;
         }
 
@@ -153,7 +153,7 @@ int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::file
         std::ofstream outputStream(outputFile);
         if (!outputStream)
         {
-            std::cerr << std::format("Error: output file {} open failed - {}", outputFile.string(), std::strerror(errno)) << std::endl;
+            std::cerr << fmt::format("Error: output file {} open failed - {}", outputFile.string(), std::strerror(errno)) << std::endl;
             return EXIT_FAILURE;
         }
 
@@ -169,21 +169,21 @@ int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::file
                 auto endPos = line.rfind('#');
                 if (endPos == startPos)
                 {
-                    std::cerr << std::format("Error: input file {} contains only one \'#\' at line {}", inputFilePath.string(), lineNumber) << std::endl;
+                    std::cerr << fmt::format("Error: input file {} contains only one \'#\' at line {}", inputFilePath.string(), lineNumber) << std::endl;
                     return EINVAL;
                 }
 
                 auto symbol = line.substr(startPos + 1, endPos - startPos - 1);
                 if (symbol.empty())
                 {
-                    std::cerr << std::format("Error: symbol from input file {} at line {} is empty somehow", inputFilePath.string(), lineNumber) << std::endl;
+                    std::cerr << fmt::format("Error: symbol from input file {} at line {} is empty somehow", inputFilePath.string(), lineNumber) << std::endl;
                     return EINVAL;
                 }
 
                 auto offset = getOffset(offsets, symbol);
                 if (!offset.has_value())
                 {
-                    std::cerr << std::format("Error: failed to get offset of symbol {} from input file {} at line {}", symbol, inputFilePath.string(), lineNumber) << std::endl;
+                    std::cerr << fmt::format("Error: failed to get offset of symbol {} from input file {} at line {}", symbol, inputFilePath.string(), lineNumber) << std::endl;
                     return EINVAL;
                 }
 

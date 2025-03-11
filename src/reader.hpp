@@ -1,6 +1,7 @@
 #pragma once
 
-#include <format>
+#include <fmt/format.h>
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -21,11 +22,11 @@ struct LargeNumber
 std::ostream& operator<<(std::ostream& os, const LargeNumber& number);
 
 template <>
-struct std::formatter<LargeNumber> : formatter<std::string>
+struct fmt::formatter<LargeNumber> : formatter<std::string>
 {
     auto format(LargeNumber number, format_context& ctx) const
     {
-        return formatter<std::string>::format(std::format("{:#018x}", static_cast<unsigned long long>(number)), ctx);
+        return formatter<std::string>::format(fmt::format("{:#018x}", static_cast<unsigned long long>(number)), ctx);
     }
 };
 

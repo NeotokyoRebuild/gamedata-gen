@@ -44,7 +44,7 @@ bool LargeNumber::operator!=(const LargeNumber& other) const
 
 std::ostream& operator<<(std::ostream& os, const LargeNumber& number)
 {
-    os << std::format("{:#018x}", static_cast<unsigned long long>(number));
+    os << fmt::format("{:#018x}", static_cast<unsigned long long>(number));
     return os;
 }
 
