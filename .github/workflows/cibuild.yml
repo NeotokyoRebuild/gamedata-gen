@@ -17,15 +17,23 @@ jobs:
       run:
         shell: bash
 
+    container:
+      image: 'registry.gitlab.steamos.cloud/steamrt/sniper/sdk:latest'
+
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
 
+    - name: Set ownership
+      run: |
+        # Fix for "detected dubious ownership in repository"
+        chown -R $(id -u):$(id -g) $PWD
+
     - name: Set reusable strings
       run: |
         preset_name=linux-release
-        workspace_dir=${{ github.workspace }}
+        workspace_dir="$GITHUB_WORKSPACE"
         source_dir=${workspace_dir}
         build_dir=${workspace_dir}/build/$preset_name
         install_dir=$build_dir/install
