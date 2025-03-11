@@ -42,11 +42,6 @@ jobs:
         echo "install_dir=$install_dir" >> "$GITHUB_ENV"
         echo "preset_name=$preset_name" >> "$GITHUB_ENV"
 
-    - name: Install packages
-      run: |
-        sudo apt update
-        sudo apt install libelf-dev ninja-build -y
-
     - name: Git fetch tags
       run: git fetch origin --tags
 
