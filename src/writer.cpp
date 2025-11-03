@@ -16,7 +16,7 @@ using ClassNamespace = std::map<std::string, FunctionOffsets>;
 using ClassVTables = std::map<std::string, ClassNamespace>;
 using Offsets = std::map<std::string, ClassVTables>;
 
-Offsets prepareOffsets(std::list<ClassInfo>& classes)
+Offsets prepareOffsets(const std::list<ClassInfo>& classes)
 {
     std::map<std::string, ClassVTables> offsets;
 
@@ -31,13 +31,21 @@ Offsets prepareOffsets(std::list<ClassInfo>& classes)
         {
             if (!function.linuxIndex.has_value())
             {
-                // std::cerr << fmt::format("Warning: function {} has no linuxIndex value", function.name) << std::endl;
+                if (!function.name.starts_with('~'))
+                {
+                    std::cerr << fmt::format("Warning: function {} has no linuxIndex value", function.name) << std::endl;
+                }
+
                 continue;
             }
 
             if (!function.windowsIndex.has_value())
             {
-                // std::cerr << fmt::format("Warning: function {} has no windowsIndex value", function.name) << std::endl;
+                if (!function.name.starts_with('~'))
+                {
+                    std::cerr << fmt::format("Warning: function {} has no windowsIndex value", function.name) << std::endl;
+                }
+
                 continue;
             }
 
@@ -50,33 +58,34 @@ Offsets prepareOffsets(std::list<ClassInfo>& classes)
     return offsets;
 }
 
-std::optional<int> getOffset(Offsets offsets, const std::string& symbol)
+std::optional<int> getVTableMethodOffset(Offsets offsets, const std::string& placeholder)
 {
-    auto functionNameStartPos = symbol.rfind("::");
+    // placeholder example: CBasePlayer::CBaseEntity::AcceptInput(char const*, CBaseEntity*, CBaseEntity*, variant_t, int).windows
+    auto functionNameStartPos = placeholder.rfind("::");
     if (functionNameStartPos == std::string::npos)
     {
-        std::cerr << fmt::format("Error: incorrect format of symbol {} (missing \'::\' separator)", symbol) << std::endl;
+        std::cerr << fmt::format("Error: incorrect format of symbol {} (missing \'::\' separator)", placeholder) << std::endl;
         return std::nullopt;
     }
 
-    auto systemNameStartPos = symbol.rfind('.');
+    auto systemNameStartPos = placeholder.rfind('.');
     if (systemNameStartPos == std::string::npos)
     {
-        std::cerr << fmt::format("Error: incorrect format of symbol {} (missing \'.\' separator)", symbol) << std::endl;
+        std::cerr << fmt::format("Error: incorrect format of symbol {} (missing \'.\' separator)", placeholder) << std::endl;
         return std::nullopt;
     }
 
-    auto namespaceStartPos = symbol.find("::");
+    auto namespaceStartPos = placeholder.find("::");
     if (namespaceStartPos == std::string::npos)
     {
-        std::cerr << fmt::format("Error: incorrect format of symbol {} (missing \'::\' separator)", symbol) << std::endl;
+        std::cerr << fmt::format("Error: incorrect format of symbol {} (missing \'::\' separator)", placeholder) << std::endl;
         return std::nullopt;
     }
 
-    auto className = symbol.substr(0, namespaceStartPos);
-    auto namespaceName = symbol.substr(namespaceStartPos + 2, functionNameStartPos - namespaceStartPos - 2);
-    auto functionName = symbol.substr(functionNameStartPos + 2, systemNameStartPos - functionNameStartPos - 2);
-    auto systemName = symbol.substr(systemNameStartPos + 1);
+    auto className = placeholder.substr(0, namespaceStartPos);
+    auto namespaceName = placeholder.substr(namespaceStartPos + 2, functionNameStartPos - namespaceStartPos - 2);
+    auto functionName = placeholder.substr(functionNameStartPos + 2, systemNameStartPos - functionNameStartPos - 2);
+    auto systemName = placeholder.substr(systemNameStartPos + 1);
 
     auto classVTablesIterator = offsets.find(className);
     if (classVTablesIterator == offsets.end())
@@ -107,7 +116,35 @@ std::optional<int> getOffset(Offsets offsets, const std::string& symbol)
     return isLinux ? function.linuxIndex : function.windowsIndex;
 }
 
-int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::filesystem::path> &inputFilePaths, const std::vector<std::filesystem::path>& outputDirectoryPaths)
+std::optional<int> getVTableFieldOffset(const std::vector<MemberOffset>& memberOffsets, const std::string& placeholder)
+{
+    // placeholder example: CGlobalEntityList::m_entityListeners
+    auto functionNameStartPos = placeholder.rfind("::");
+    if (functionNameStartPos == std::string::npos)
+    {
+        std::cerr << fmt::format("Error: incorrect format of symbol {} (missing \'::\' separator)", placeholder) << std::endl;
+        return std::nullopt;
+    }
+
+    auto className = placeholder.substr(0, functionNameStartPos);
+    auto memberName = placeholder.substr(functionNameStartPos + 2, placeholder.size());
+
+    for (const auto& memberOffset : memberOffsets)
+    {
+        if (memberOffset.className == className && memberOffset.memberName == memberName)
+        {
+            return memberOffset.offset;
+        }
+    }
+
+    return std::nullopt;
+}
+
+int writeGamedataFile(
+    const std::list<ClassInfo>& classes,
+    const std::vector<MemberOffset>& memberOffsets,
+    const std::vector<std::filesystem::path>& inputFilePaths,
+    const std::vector<std::filesystem::path>& outputDirectoryPaths)
 {
     auto offsets = prepareOffsets(classes);
 
@@ -173,21 +210,51 @@ int writeGamedataFile(std::list<ClassInfo>& classes, const std::vector<std::file
                     return EINVAL;
                 }
 
-                auto symbol = line.substr(startPos + 1, endPos - startPos - 1);
-                if (symbol.empty())
+                auto placeholder = line.substr(startPos + 1, endPos - startPos - 1);
+                if (placeholder.empty())
                 {
-                    std::cerr << fmt::format("Error: symbol from input file {} at line {} is empty somehow", inputFilePath.string(), lineNumber) << std::endl;
+                    std::cerr << fmt::format("Error: placeholder in input file {} at line {} is empty", inputFilePath.string(), lineNumber) << std::endl;
                     return EINVAL;
                 }
 
-                auto offset = getOffset(offsets, symbol);
-                if (!offset.has_value())
+                auto entryTypeEndPos = placeholder.find('.');
+                if (entryTypeEndPos == std::string::npos)
                 {
-                    std::cerr << fmt::format("Error: failed to get offset of symbol {} from input file {} at line {}", symbol, inputFilePath.string(), lineNumber) << std::endl;
+                    std::cerr << fmt::format("Error: incorrect format of placeholder {} (missing \'.\' separator)", placeholder) << std::endl;
                     return EINVAL;
                 }
 
-                line.replace(startPos, endPos - startPos + 1, std::to_string(offset.value()));
+                auto entryType = placeholder.substr(0, entryTypeEndPos);
+                placeholder = placeholder.substr(entryTypeEndPos + 1, placeholder.size());
+
+                std::string result;
+                if (entryType == "VTableMethod")
+                {
+                    auto offset = getVTableMethodOffset(offsets, placeholder);
+                    if (!offset.has_value())
+                    {
+                        std::cerr << fmt::format("Error: failed to get vtable offset of placeholder {} from input file {} at line {}", placeholder, inputFilePath.string(), lineNumber) << std::endl;
+                        return EINVAL;
+                    }
+                    result = std::to_string(offset.value());
+                }
+                else if (entryType == "VTableField")
+                {
+                    auto offset = getVTableFieldOffset(memberOffsets, placeholder);
+                    if (!offset.has_value())
+                    {
+                        std::cerr << fmt::format("Error: failed to get member offset of placeholder {} from input file {} at line {}", placeholder, inputFilePath.string(), lineNumber) << std::endl;
+                        return EINVAL;
+                    }
+                    result = std::to_string(offset.value());
+                }
+                else
+                {
+                    std::cerr << fmt::format("Error: unknown entryType {} in input file {} at line {}", entryType, inputFilePath.string(), lineNumber) << std::endl;
+                    return EINVAL;
+                }
+
+                line.replace(startPos, endPos - startPos + 1, result);
             }
 
             outputStream << line << std::endl; // write to os
