@@ -19,6 +19,13 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+struct VTableFieldOffsetDataRaw
+{
+    uint64_t class_name_ptr;
+    uint64_t member_name_ptr;
+    uint64_t offset;
+};
+
 LargeNumber::LargeNumber() : high{}, low{}, isUnsigned{}
 {
 
@@ -92,14 +99,14 @@ ProgramInfo process(char *image, std::size_t size)
         return programInfo;
     }
 
-    size_t numberOfSections;
+    size_t numberOfSections = 0;
     if (elf_getshdrnum(elf, &numberOfSections) != 0)
     {
         programInfo.error = "Failed to get number of ELF sections. (" + std::string(elf_errmsg(-1)) + ")";
         return programInfo;
     }
 
-    size_t sectionNameStringTableIndex;
+    size_t sectionNameStringTableIndex = 0;
     if (elf_getshdrstrndx(elf, &sectionNameStringTableIndex) != 0)
     {
         programInfo.error = "Failed to get ELF section names. (" + std::string(elf_errmsg(-1)) + ")";
@@ -113,14 +120,14 @@ ProgramInfo process(char *image, std::size_t size)
     Elf_Scn *symbolTableScn = nullptr;
 
     size_t stringTableIndex = SHN_UNDEF;
-    Elf_Scn *stringTableScn = nullptr;
+    const Elf_Scn *stringTableScn = nullptr;
 
     size_t rodataIndex = SHN_UNDEF;
-    Elf64_Addr rodataOffset;
+    Elf64_Addr rodataOffset = 0;
     Elf_Scn *rodataScn = nullptr;
 
     size_t relRodataIndex = SHN_UNDEF;
-    Elf64_Addr relRodataOffset;
+    Elf64_Addr relRodataOffset = 0;
     Elf_Scn *relRodataScn = nullptr;
 
     for (size_t elfSectionIndex = 0; elfSectionIndex < numberOfSections; ++elfSectionIndex)
@@ -175,6 +182,26 @@ ProgramInfo process(char *image, std::size_t size)
             relRodataOffset = elfSectionHeader.sh_addr;
             relRodataScn = elfScn;
         }
+        else if(elfSectionHeader.sh_type == SHT_PROGBITS && strcmp(name, ".member_offsets") == 0)
+        {
+            Elf_Data* data = elf_getdata(elfScn, nullptr);
+            if (data && data->d_size > 0)
+            {
+                size_t entry_count = data->d_size / sizeof(VTableFieldOffsetDataRaw);
+                auto entries = static_cast<const VTableFieldOffsetDataRaw*>(data->d_buf);
+
+                for (size_t i = 0; i < entry_count; ++i)
+                {
+#if 0
+                    std::cout << "VTableFieldOffsetData entry " << i << ":\n";
+                    std::cout << "  Class name: " << &image[entries[i].class_name_ptr] << "\n";
+                    std::cout << "  Member name: " << &image[entries[i].member_name_ptr] << "\n";
+                    std::cout << "  Offset: " << entries[i].offset << " (0x" << std::hex << entries[i].offset << std::dec << ")\n";
+#endif
+                    programInfo.vtableFieldDataEntries.emplace_back(&image[entries[i].class_name_ptr], &image[entries[i].member_name_ptr], entries[i].offset);
+                }
+            }
+        }
 
         if (relocationTableScn && dynamicSymbolTableScn && symbolTableScn && stringTableScn && rodataScn && relRodataScn)
         {
@@ -196,7 +223,7 @@ ProgramInfo process(char *image, std::size_t size)
         Elf_Data *relocationData = nullptr;
         while ((relocationData = elf_getdata(relocationTableScn, relocationData)) != nullptr)
         {
-            size_t relocationIndex = 0;
+            int relocationIndex = 0;
             GElf_Rel relocation;
             while (gelf_getrel(relocationData, relocationIndex++, &relocation) == &relocation)
             {
@@ -210,7 +237,7 @@ ProgramInfo process(char *image, std::size_t size)
                 while ((symbolData = elf_getdata(dynamicSymbolTableScn, symbolData)) != nullptr)
                 {
                     GElf_Sym symbol;
-                    size_t symbolIndex = GELF_R_SYM(relocation.r_info);
+                    int symbolIndex = GELF_R_SYM(relocation.r_info);
                     if (gelf_getsym(symbolData, symbolIndex, &symbol) != &symbol)
                     {
                         continue;

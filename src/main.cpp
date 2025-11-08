@@ -246,5 +246,5 @@ int main(int argc, char *argv[])
         }
     }
 
-    return writeGamedataFile(out.classes, inputFilePaths, outputDirectoryPaths);
+    return writeGamedataFile(out.classes, programInfo.vtableFieldDataEntries, inputFilePaths, outputDirectoryPaths);
 }

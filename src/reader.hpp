@@ -50,6 +50,13 @@ struct RelocationInfo
     LargeNumber target;
 };
 
+struct MemberOffset
+{
+    std::string className;
+    std::string memberName;
+    uint64_t offset;
+};
+
 struct ProgramInfo
 {
     std::string error;
@@ -62,6 +69,7 @@ struct ProgramInfo
     std::vector<RodataChunk> relRodataChunks;
     std::vector<SymbolInfo> symbols;
     std::vector<RelocationInfo> relocations;
+    std::vector<MemberOffset> vtableFieldDataEntries;
 };
 
 ProgramInfo process(char *image, std::size_t size);

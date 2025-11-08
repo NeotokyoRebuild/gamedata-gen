@@ -7,7 +7,7 @@
 
 std::unique_ptr<char, DemangledSymbolDeallocator> demangleSymbol(const char *abiName)
 {
-    int status;
+    int status = -4;
     char *ret = abi::__cxa_demangle(abiName, 0, 0, &status);
 
     DemangledSymbolDeallocator deallocator = [](char *mem)
@@ -34,7 +34,7 @@ std::unique_ptr<char, DemangledSymbolDeallocator> demangleSymbol(const char *abi
 std::span<const unsigned char> getDataForSymbol(const ProgramInfo &programInfo, const SymbolInfo &symbol)
 {
     LargeNumber dataStart;
-    const std::vector<RodataChunk> *dataChunks;
+    const std::vector<RodataChunk> *dataChunks = nullptr;
 
     if (symbol.section == 0)
     {
@@ -149,12 +149,12 @@ Out parse(ProgramInfo &programInfo)
             functionAddress.low = symbolDataView[functionIndex];
             functionAddress.isUnsigned = true;
 
+            // Note: Relocations not supported for 64-bit bins
             if (programInfo.addressSize > BYTES_PER_ELEMENT)
             {
                 functionAddress.high = symbolDataView[++functionIndex];
             }
-
-            if (programInfo.addressSize == BYTES_PER_ELEMENT)
+            else if (programInfo.addressSize == BYTES_PER_ELEMENT)
             {
                 LargeNumber localAddress;
                 localAddress.high = 0;
@@ -166,10 +166,6 @@ Out parse(ProgramInfo &programInfo)
                 {
                     functionAddress = targetAddress;
                 }
-            }
-            else
-            {
-                std::cout << "Relocations not supported for 64-bit bins" << std::endl;
             }
 
             auto functionSymbolsIterator = addressToSymbolMap.find(functionAddress);
@@ -186,7 +182,7 @@ Out parse(ProgramInfo &programInfo)
             // This could be the end of the vtable, or it could just be a pure/deleted func.
             if (functionSymbolsIterator == addressToSymbolMap.end())
             {
-                if (classInfo.vtables.size() == 0 || static_cast<unsigned long long>(functionAddress) != 0)
+                if (classInfo.vtables.empty() || static_cast<unsigned long long>(functionAddress) != 0)
                 {
                     auto& newClassVTable = classInfo.vtables.emplace_back();
                     classVTable = &newClassVTable;
@@ -206,7 +202,7 @@ Out parse(ProgramInfo &programInfo)
             }
 
             auto functionSymbols = functionSymbolsIterator->second;
-            auto functionSymbol = functionSymbols.back();
+            const auto& functionSymbol = functionSymbols.back();
 
             auto functionSymbolName = functionSymbol.name;
             if (functionSymbolName == "__cxa_deleted_virtual" || functionSymbolName == "__cxa_pure_virtual")
@@ -215,7 +211,7 @@ Out parse(ProgramInfo &programInfo)
                 continue;
             }
 
-            FunctionInfo *functionInfoPtr;
+            FunctionInfo *functionInfoPtr = nullptr;
 
             auto functionInfoIterator = addressToFunctionMap.find(functionAddress);
             if (functionInfoIterator != addressToFunctionMap.end())
@@ -235,6 +231,7 @@ Out parse(ProgramInfo &programInfo)
                 if (startOfName != std::string::npos)
                 {
                     name = name.substr(startOfName + 2);
+                    nameSpace.resize(startOfName);
                 }
 
                 auto startOfArgs = demangledSymbol.rfind('(');
@@ -242,9 +239,6 @@ Out parse(ProgramInfo &programInfo)
                 {
                     shortName = shortName.substr(startOfName + 2, startOfArgs - startOfName - 2);
                 }
-
-
-                nameSpace = nameSpace.substr(0, startOfName);
 
                 FunctionInfo functionInfo;
 

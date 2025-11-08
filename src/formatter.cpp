@@ -63,8 +63,8 @@ std::vector<Out2> formatVTable(const ClassInfo &classInfo)
 
                 while ((linuxIndex - (1 + previousOverloads)) >= 0)
                 {
-                    auto previousFunctionIndex = linuxIndex - (1 + previousOverloads);
-                    auto previousFunctionInfo = vtableInfo.functions.at(previousFunctionIndex);
+                    const auto previousFunctionIndex = linuxIndex - (1 + previousOverloads);
+                    const auto previousFunctionInfo = vtableInfo.functions.at(previousFunctionIndex);
 
                     if (functionInfo->symbol.name.empty() || shouldSkipWindowsFunction(classInfo, vtableIndex, previousFunctionIndex, *previousFunctionInfo))
                     {
@@ -81,8 +81,8 @@ std::vector<Out2> formatVTable(const ClassInfo &classInfo)
 
                 while ((linuxIndex + 1 + remainingOverloads) < static_cast<int>(vtableInfo.functions.size()))
                 {
-                    auto nextFunctionIndex = linuxIndex + 1 + remainingOverloads;
-                    auto nextFunctionInfo = vtableInfo.functions.at(nextFunctionIndex);
+                    const auto nextFunctionIndex = linuxIndex + 1 + remainingOverloads;
+                    const auto nextFunctionInfo = vtableInfo.functions.at(nextFunctionIndex);
 
                     if (functionInfo->symbol.name.empty() || shouldSkipWindowsFunction(classInfo, vtableIndex, nextFunctionIndex, *nextFunctionInfo))
                     {
